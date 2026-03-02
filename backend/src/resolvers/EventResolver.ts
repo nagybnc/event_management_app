@@ -4,6 +4,7 @@ import { EventStatus } from "../enums/EventStatus";
 import { CreateEventInput } from "../inputs/CreateEventInput";
 import { UpdateEventInput } from "../inputs/UpdateEventInput";
 import { AppDataSource } from "../data-source";
+import { emailQueue } from "../queues/emailQueue";
 
 @Resolver()
 export class EventResolver {
@@ -81,6 +82,21 @@ export class EventResolver {
 
     Object.assign(event, input);
     const saved = await this.eventRepo.save(event);
+
+    if (
+      previousStatus === EventStatus.DRAFT &&
+      saved.status === EventStatus.PUBLISHED &&
+      saved.participants.length > 0
+    ) {
+      await emailQueue.add("send-notifications", {
+        eventId: saved.id,
+        eventTitle: saved.title,
+        startDate: saved.startDate.toISOString(),
+        endDate: saved.endDate.toISOString(),
+        location: saved.location,
+        emails: saved.participants.map((p) => p.email),
+      });
+    }
 
     return saved;
   }
