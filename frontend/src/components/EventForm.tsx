@@ -1,12 +1,18 @@
 import { useState } from "react";
+import { useQuery } from "@apollo/client";
 import {
     TextField,
     MenuItem,
     Button,
     Stack,
+    Alert,
 } from "@mui/material";
+import { GET_LOCATIONS } from "../graphql/queries";
 
-const LOCATIONS = ["CORINTHIA_BUDAPEST", "HEMINGWAY_ETTEREM", "BOSCOLO", "PESTI_VIGADO", "GUNDEL_ETTEREM", "VAJDAHUNYAD_VAR", "BALATONFURED_KONGRESSZUSI_KOZPONT", "OBOLHAZ_RENDEZVENYKOZPONT"];
+interface LocationInfo {
+    value: string;
+    label: string;
+}
 
 interface EventFormProps {
     initial?: {
@@ -20,8 +26,9 @@ interface EventFormProps {
         location: string;
         startDate: string;
         endDate: string;
-    }) => void;
+    }) => void | Promise<void>;
     submitLabel: string;
+    submitting?: boolean;
 }
 
 function toDatetimeLocal(iso: string): string {
@@ -31,29 +38,61 @@ function toDatetimeLocal(iso: string): string {
     return d.toISOString().slice(0, 16);
 }
 
-export default function EventForm({ initial, onSubmit, submitLabel }: EventFormProps) {
+export default function EventForm({
+    initial,
+    onSubmit,
+    submitLabel,
+    submitting = false,
+}: EventFormProps) {
+    const { data } = useQuery<{ locations: LocationInfo[] }>(GET_LOCATIONS);
+    const locations = data?.locations ?? [];
+
     const [title, setTitle] = useState(initial?.title ?? "");
-    const [location, setLocation] = useState(initial?.location ?? LOCATIONS[0]);
+    const [location, setLocation] = useState(initial?.location ?? "");
     const [startDate, setStartDate] = useState(
         initial?.startDate ? toDatetimeLocal(initial.startDate) : ""
     );
     const [endDate, setEndDate] = useState(
         initial?.endDate ? toDatetimeLocal(initial.endDate) : ""
     );
+    const [formError, setFormError] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Default to first location once loaded
+    const effectiveLocation = location || (locations.length > 0 ? locations[0].value : "");
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({
-            title,
-            location,
-            startDate: new Date(startDate).toISOString(),
-            endDate: new Date(endDate).toISOString(),
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            setFormError("Please provide valid start and end dates");
+            return;
+        }
+
+        if (start >= end) {
+            setFormError("Start date must be before end date");
+            return;
+        }
+
+        if (!effectiveLocation) {
+            setFormError("Please select a location");
+            return;
+        }
+
+        setFormError("");
+        await onSubmit({
+            title: title.trim(),
+            location: effectiveLocation,
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
         });
     };
 
     return (
         <form onSubmit={handleSubmit}>
             <Stack spacing={2} sx={{ mt: 1 }}>
+                {formError && <Alert severity="error">{formError}</Alert>}
                 <TextField
                     label="Title"
                     value={title}
@@ -63,14 +102,14 @@ export default function EventForm({ initial, onSubmit, submitLabel }: EventFormP
                 />
                 <TextField
                     label="Location"
-                    value={location}
+                    value={effectiveLocation}
                     onChange={(e) => setLocation(e.target.value)}
                     select
                     fullWidth
                 >
-                    {LOCATIONS.map((loc) => (
-                        <MenuItem key={loc} value={loc}>
-                            {loc}
+                    {locations.map(({ value, label }) => (
+                        <MenuItem key={value} value={value}>
+                            {label}
                         </MenuItem>
                     ))}
                 </TextField>
@@ -92,7 +131,7 @@ export default function EventForm({ initial, onSubmit, submitLabel }: EventFormP
                     fullWidth
                     slotProps={{ inputLabel: { shrink: true } }}
                 />
-                <Button type="submit" variant="contained">
+                <Button type="submit" variant="contained" disabled={submitting}>
                     {submitLabel}
                 </Button>
             </Stack>

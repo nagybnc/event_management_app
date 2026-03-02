@@ -12,14 +12,36 @@ import {
     AppBar,
     Toolbar,
 } from "@mui/material";
-import { GET_EVENTS } from "../graphql/queries";
+import { GET_EVENTS, GET_LOCATIONS } from "../graphql/queries";
 import { CREATE_EVENT, DELETE_EVENT } from "../graphql/mutations";
 import EventCard from "../components/EventCard";
 import EventForm from "../components/EventForm";
 
+interface EventListItem {
+    id: string;
+    title: string;
+    status: string;
+    location: string;
+    startDate: string;
+    endDate: string;
+    participants: { id: string }[];
+}
+
+interface EventsQueryData {
+    events: EventListItem[];
+}
+
+interface LocationsQueryData {
+    locations: Array<{ value: string; label: string }>;
+}
+
 export default function EventsListPage() {
-    const { data, loading, error } = useQuery(GET_EVENTS);
-    const [createEvent] = useMutation(CREATE_EVENT, {
+    const { data, loading, error } = useQuery<EventsQueryData>(GET_EVENTS);
+    const { data: locData } = useQuery<LocationsQueryData>(GET_LOCATIONS);
+    const locationLabels: Record<string, string> = Object.fromEntries(
+        (locData?.locations ?? []).map((l) => [l.value, l.label])
+    );
+    const [createEvent, { loading: creating }] = useMutation(CREATE_EVENT, {
         refetchQueries: [{ query: GET_EVENTS }],
     });
     const [deleteEvent] = useMutation(DELETE_EVENT, {
@@ -73,6 +95,7 @@ export default function EventsListPage() {
                     variant="contained"
                     onClick={() => setDialogOpen(true)}
                     sx={{ mb: 3 }}
+                    disabled={creating}
                 >
                     Create Event
                 </Button>
@@ -81,21 +104,15 @@ export default function EventsListPage() {
                 {error && <Typography color="error">{error.message}</Typography>}
 
                 <Grid container spacing={2}>
-                    {data?.events.map(
-                        (event: {
-                            id: string;
-                            title: string;
-                            status: string;
-                            location: string;
-                            startDate: string;
-                            endDate: string;
-                            participants: { id: string }[];
-                        }) => (
-                            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={event.id}>
-                                <EventCard event={event} onDelete={handleDelete} />
-                            </Grid>
-                        )
-                    )}
+                    {data?.events.map((event) => (
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={event.id}>
+                            <EventCard
+                                event={event}
+                                locationLabels={locationLabels}
+                                onDelete={handleDelete}
+                            />
+                        </Grid>
+                    ))}
                 </Grid>
 
                 <Dialog
@@ -106,7 +123,11 @@ export default function EventsListPage() {
                 >
                     <DialogTitle>Create Event</DialogTitle>
                     <DialogContent>
-                        <EventForm onSubmit={handleCreate} submitLabel="Create" />
+                        <EventForm
+                            onSubmit={handleCreate}
+                            submitLabel="Create"
+                            submitting={creating}
+                        />
                     </DialogContent>
                 </Dialog>
             </Container>

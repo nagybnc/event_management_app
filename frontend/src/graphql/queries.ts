@@ -11,8 +11,16 @@ export const GET_EVENTS = gql`
       endDate
       participants {
         id
-        email
       }
+    }
+  }
+`;
+
+export const GET_LOCATIONS = gql`
+  query GetLocations {
+    locations {
+      value
+      label
     }
   }
 `;

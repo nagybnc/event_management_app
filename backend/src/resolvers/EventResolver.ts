@@ -1,10 +1,28 @@
-import { Resolver, Query, Mutation, Arg, ID } from "type-graphql";
+import {
+  Resolver,
+  Query,
+  Mutation,
+  Arg,
+  ID,
+  ObjectType,
+  Field,
+} from "type-graphql";
 import { Event } from "../entities/Event";
 import { EventStatus } from "../enums/EventStatus";
+import { Location } from "../constants/locations";
 import { CreateEventInput } from "../inputs/CreateEventInput";
 import { UpdateEventInput } from "../inputs/UpdateEventInput";
 import { AppDataSource } from "../data-source";
 import { emailQueue } from "../queues/emailQueue";
+
+@ObjectType()
+class LocationInfo {
+  @Field()
+  value!: string;
+
+  @Field()
+  label!: string;
+}
 
 @Resolver()
 export class EventResolver {
@@ -24,6 +42,14 @@ export class EventResolver {
       where: { id },
       relations: ["participants"],
     });
+  }
+
+  @Query(() => [LocationInfo])
+  locations(): LocationInfo[] {
+    return Object.entries(Location).map(([key, label]) => ({
+      value: key,
+      label,
+    }));
   }
 
   @Mutation(() => Event)

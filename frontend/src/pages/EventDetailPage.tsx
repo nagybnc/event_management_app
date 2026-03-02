@@ -34,13 +34,19 @@ export default function EventDetailPage() {
         variables: { id },
     });
 
-    const [updateEvent] = useMutation(UPDATE_EVENT);
-    const [addParticipant] = useMutation(ADD_PARTICIPANT, {
-        refetchQueries: [{ query: GET_EVENT, variables: { id } }],
-    });
-    const [removeParticipant] = useMutation(REMOVE_PARTICIPANT, {
-        refetchQueries: [{ query: GET_EVENT, variables: { id } }],
-    });
+    const [updateEvent, { loading: updating }] = useMutation(UPDATE_EVENT);
+    const [addParticipant, { loading: addingParticipant }] = useMutation(
+        ADD_PARTICIPANT,
+        {
+            refetchQueries: [{ query: GET_EVENT, variables: { id } }],
+        }
+    );
+    const [removeParticipant, { loading: removingParticipant }] = useMutation(
+        REMOVE_PARTICIPANT,
+        {
+            refetchQueries: [{ query: GET_EVENT, variables: { id } }],
+        }
+    );
 
     const [successMsg, setSuccessMsg] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
@@ -103,6 +109,7 @@ export default function EventDetailPage() {
     const handleRemoveParticipant = async (participantId: string) => {
         try {
             await removeParticipant({ variables: { id: participantId } });
+            setErrorMsg("");
         } catch (err: unknown) {
             setErrorMsg(
                 err instanceof Error ? err.message : "Failed to remove participant"
@@ -145,6 +152,7 @@ export default function EventDetailPage() {
                     color="success"
                     onClick={handlePublish}
                     sx={{ mb: 3 }}
+                    disabled={updating || addingParticipant || removingParticipant}
                 >
                     Publish Event
                 </Button>
@@ -163,6 +171,7 @@ export default function EventDetailPage() {
                     }}
                     onSubmit={handleUpdate}
                     submitLabel="Save Changes"
+                    submitting={updating}
                 />
             </Paper>
 
@@ -172,7 +181,10 @@ export default function EventDetailPage() {
                 </Typography>
 
                 <Box sx={{ mb: 2 }}>
-                    <ParticipantForm onSubmit={handleAddParticipant} />
+                    <ParticipantForm
+                        onSubmit={handleAddParticipant}
+                        submitting={addingParticipant}
+                    />
                 </Box>
 
                 <Divider />
@@ -191,6 +203,7 @@ export default function EventDetailPage() {
                                         <IconButton
                                             edge="end"
                                             onClick={() => handleRemoveParticipant(p.id)}
+                                            disabled={removingParticipant}
                                         >
                                             <DeleteIcon />
                                         </IconButton>

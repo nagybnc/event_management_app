@@ -19,10 +19,11 @@ interface EventCardProps {
         endDate: string;
         participants: { id: string }[];
     };
+    locationLabels: Record<string, string>;
     onDelete: (id: string) => void;
 }
 
-export default function EventCard({ event, onDelete }: EventCardProps) {
+export default function EventCard({ event, locationLabels, onDelete }: EventCardProps) {
     const navigate = useNavigate();
 
     return (
@@ -37,7 +38,7 @@ export default function EventCard({ event, onDelete }: EventCardProps) {
                     />
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
-                    {event.location}
+                    {locationLabels[event.location] ?? event.location}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                     {new Date(event.startDate).toLocaleString()} —{" "}

@@ -2,17 +2,25 @@ import { useState } from "react";
 import { TextField, Button, Stack } from "@mui/material";
 
 interface ParticipantFormProps {
-    onSubmit: (email: string) => void;
+    onSubmit: (email: string) => void | Promise<void>;
+    submitting?: boolean;
 }
 
-export default function ParticipantForm({ onSubmit }: ParticipantFormProps) {
+export default function ParticipantForm({
+    onSubmit,
+    submitting = false,
+}: ParticipantFormProps) {
     const [email, setEmail] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (email.trim()) {
-            onSubmit(email.trim());
-            setEmail("");
+            try {
+                await onSubmit(email.trim());
+                setEmail("");
+            } catch {
+                // Error state is handled by parent page; keep input value for quick retry.
+            }
         }
     };
 
@@ -26,8 +34,9 @@ export default function ParticipantForm({ onSubmit }: ParticipantFormProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     size="small"
+                    disabled={submitting}
                 />
-                <Button type="submit" variant="outlined" size="medium">
+                <Button type="submit" variant="outlined" size="medium" disabled={submitting}>
                     Add
                 </Button>
             </Stack>
